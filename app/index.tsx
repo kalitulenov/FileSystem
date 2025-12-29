@@ -92,53 +92,149 @@ export default function App() {
     };
   }, []);
 
-  // Функция для начала загрузки файла ================================
-  // const downloadFile = async () => {
-  //   console.log("downloadFile");
-  //   setIsDownloading(true);
-  //   // TODO: Реализовать вызов download.downloadAsync()
-  //   // const {uri} = await download.downloadAsync();
+  // // Функция для начала загрузки файла ================================
 
-  //   AsyncStorage.removeItem("download"); // Удаляем сохраненную загрузку
-  //   setIsDownloaded(true); // Устанавливаем флаг завершенной загрузки
+  // const downloadFile = async () => {
+  //   if (!download) return;
+
+  //   setIsDownloading(true);
+  //   setIsPaused(false);
+
+  //   try {
+  //     await download.downloadAsync(); // ✅ ЗАПУСК ЗАГРУЗКИ
+  //     setIsDownloaded(true);
+  //     setIsDownloading(false);
+  //     AsyncStorage.removeItem("download");
+  //   } catch (e) {
+  //     console.log("Download error:", e);
+  //   }
   // };
 
+  // // Функция для приостановки загрузки ===============================
+
+  // const pauseDownload = async () => {
+  //   if (!download || !isDownloading) return;
+
+  //   try {
+  //     setIsPaused(true);
+
+  //     const pauseState = await download.pauseAsync();
+
+  //     await AsyncStorage.setItem(
+  //       "download",
+  //       JSON.stringify({
+  //         ...download.savable(),
+  //         resumeData: pauseState,
+  //       })
+  //     );
+
+  //     setIsDownloading(false);
+  //     console.log("Paused download");
+  //   } catch (e) {
+  //     console.log("Pause error:", e);
+  //   }
+  // };
+
+  // // Функция для возобновления загрузки ================================
+  // const resumeDownload = async () => {
+  //   if (!download || !isPaused) return;
+
+  //   try {
+  //     setIsPaused(false);
+  //     setIsDownloading(true);
+
+  //     await download.resumeAsync(); // ✅
+  //     setIsDownloaded(true);
+  //     setIsDownloading(false);
+
+  //     AsyncStorage.removeItem("download");
+  //   } catch (e) {
+  //     console.log("Resume error:", e);
+  //   }
+  // };
+
+  // Функция для начала загрузки файла ========================
   const downloadFile = async () => {
+    // Проверка: есть ли объект загрузки для работы
     if (!download) return;
 
+    // Устанавливаем состояния: загрузка началась и не на паузе
     setIsDownloading(true);
     setIsPaused(false);
 
     try {
-      await download.downloadAsync(); // ✅ ЗАПУСК ЗАГРУЗКИ
-      setIsDownloaded(true);
-      setIsDownloading(false);
+      // ✅ ЗАПУСК ЗАГРУЗКИ: начинаем асинхронную загрузку файла
+      await download.downloadAsync();
+
+      // После успешной загрузки обновляем состояния:
+      setIsDownloaded(true); // Флаг завершения загрузки
+      setIsDownloading(false); // Останавливаем индикатор загрузки
+
+      // Удаляем сохраненные данные о загрузке из локального хранилища,
+      // так как загрузка успешно завершена
       AsyncStorage.removeItem("download");
     } catch (e) {
+      // Обработка ошибок при загрузке
       console.log("Download error:", e);
     }
   };
 
-  // Функция для приостановки загрузки ===============================
+  // Функция для приостановки загрузки ======================
   const pauseDownload = async () => {
-    console.log("pauseDownload");
-    if (!download) return; // Защита от вызова при отсутствии объекта загрузки
+    // Проверки: существует ли объект загрузки И идет ли сейчас загрузка
+    if (!download || !isDownloading) return;
 
-    setIsPaused(true);
-    const pauseState = await download.pauseAsync(); // Приостанавливаем загрузку
-    AsyncStorage.setItem("download", JSON.stringify(download.savable())); // Сохраняем состояние
-    console.log("Paused download");
+    try {
+      // Устанавливаем состояние паузы
+      setIsPaused(true);
+
+      // Приостанавливаем загрузку и получаем состояние для возобновления
+      const pauseState = await download.pauseAsync();
+
+      // Сохраняем состояние загрузки в локальное хранилище:
+      // - Основные параметры загрузки (URL, путь к файлу и т.д.)
+      // - Данные для возобновления (resumeData) - ключевой элемент
+      await AsyncStorage.setItem(
+        "download",
+        JSON.stringify({
+          ...download.savable(), // Базовые параметры загрузки
+          resumeData: pauseState, // Данные для продолжения загрузки
+        })
+      );
+
+      // Обновляем состояние: загрузка больше не активна
+      setIsDownloading(false);
+      console.log("Paused download");
+    } catch (e) {
+      // Обработка ошибок при паузе
+      console.log("Pause error:", e);
+    }
   };
 
-  // Функция для возобновления загрузки ================================
+  // Функция для возобновления приостановленной загрузки =================
   const resumeDownload = async () => {
-    console.log("resumeDownload");
-    setIsPaused(false);
-    // TODO: Реализовать вызов download.resumeAsync()
-    // const { uri } = await download.resumeAsync();
+    // Проверки: существует ли объект загрузки И находится ли она на паузе
+    if (!download || !isPaused) return;
 
-    AsyncStorage.removeItem("download"); // Удаляем сохраненное состояние
-    setIsDownloaded(true); // Устанавливаем флаг завершенной загрузки
+    try {
+      // Снимаем состояние паузы и возобновляем индикатор загрузки
+      setIsPaused(false);
+      setIsDownloading(true);
+
+      // ✅ ВОЗОБНОВЛЕНИЕ ЗАГРУЗКИ: продолжаем с места остановки
+      await download.resumeAsync();
+
+      // После успешного завершения обновляем состояния:
+      setIsDownloaded(true); // Флаг завершения загрузки
+      setIsDownloading(false); // Останавливаем индикатор загрузки
+
+      // Удаляем сохраненные данные о загрузке из локального хранилища,
+      // так как загрузка теперь полностью завершена
+      AsyncStorage.removeItem("download");
+    } catch (e) {
+      // Обработка ошибок при возобновлении
+      console.log("Resume error:", e);
+    }
   };
 
   // Функция для сброса загрузки =====================================
